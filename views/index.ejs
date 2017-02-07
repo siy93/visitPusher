@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Okapi Visit Pusher Sample</title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <style>
+      .left-box {
+        background: white;
+        float: left;
+        width: 50%;
+      }
+      .right-box {
+        background: white;
+        float: right;
+        width: 50%;
+      }
+      .button {
+        display: inline-block;
+        padding: 15px 15px;
+        font-size: 5px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        outline: none;
+        color: #fff;
+        background-color: #4CAF50;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 9px #999;
+      }
+
+      .button:hover {background-color: #3e8e41}
+
+      .button:active {
+        background-color: #3e8e41;
+        box-shadow: 0 5px #666;
+        transform: translateY(4px);
+      }
+    </style>
+  </head>
+  <body>
+  <div class="main">
+    <h1>Okapi</h1>
+    <h5 style="text-align:right">Your Id</h5>
+    <p style="text-align:right" id="userid"></p>
+  </div>
+  <div class='left-box' id='left-box'>
+    <h2>Friends</h2>
+    <button class="button" id="visit" value="1">1</button>
+    <button class="button" id="visit" value="2">2</button>
+    <button class="button" id="visit" value="3">3</button>
+  </div>
+  <div class='right-box' id='right-box'>
+    <h2>Push</h2>
+  </div>
+
+
+  </body>
+  <script>
+      var mqttClient = mqtt.connect('ws://localhost:15675/ws');
+      var userId = "<%= userid %>";
+
+      /* Mqtt Setup */
+      mqttClient.on('connect',function(){
+          mqttClient.subscribe('usersChange');
+      })
+
+      mqttClient.on('message',function (topic,message) {
+
+      })
+
+      /* JQuery Setup */
+
+      //User connected
+      $("#userid").html("<%= userid %>");
+
+      //button click option
+      $(document).on("click","#visit",function()
+      {
+          $.ajax({
+              url: '/',
+              type:'POST',
+              data: {visitId: $('#visit').html()},
+          });
+      });
+
+
+      function add_item(id) {
+          var button = '<button class="button" id="visit">'+id+'</button></br>'
+          $('#left-box').append(button)
+      }
+
+//
+//
+//      $("#userid").html(message.toString());
+//
+//      $('#bt_test').click(function(e){
+//      })
+
+  </script>
+</html>
