@@ -8,6 +8,7 @@
   "dependencies": {
     "JSON": "^1.0.0",
     "amqplib": "^0.5.1",
+    "async": "^2.1.4",
     "body-parser": "~1.15.2",
     "connect-redis": "^3.2.0",
     "cookie-parser": "~1.4.3",
