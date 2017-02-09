@@ -90,9 +90,6 @@
               url: '/',
               type:'POST',
               data: {click : 1},
-              success: function(msg){
-                  alert( "Data Saved: " + msg );
-              }
           });
           e.preventDefault();
           xhr.abort();
@@ -115,11 +112,9 @@
               type:'POST',
               data: {click : 3},
           });
+          xhr.abort();
           e.preventDefault();
       })
-
-
-
 
   </script>
 </html>

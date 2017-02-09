@@ -9,11 +9,12 @@ var mqttClient = mqtt.connect('mqtt://localhost');
 
 var count = 0;
 var pushSetup = {
-    countPush: true,
+    countPush: false,
     countLimit: 3,
-    timerPush: true,
+
+    timerPush: false,
     timerInterval: 1000,
-    timezonePush: false,
+    timezonePush: true,
     timezonePushTime: 15,
     timezoneInterval : 3600000,
     serverTimeZone : 9
@@ -21,12 +22,12 @@ var pushSetup = {
 
 /* Mqtt Client Sample*/
 mqttClient.on('connect',function(){
-    mqttClient.subscribe('user1');
 });
 
 mqttClient.on('message',function (topic,message) {
     console.log(message.toString());
 });
+
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -37,69 +38,87 @@ router.get('/', function(req, res, next) {
     });
 });
 
+
 /* POST page View*/
 router.post('/',function(req,res,next){
     console.log(req.body.click);
-    redisClient.hmget('Users','user' + req.body.click.toString(),function (err,obj) {
+    redisClient.hget('Users','user' + req.body.click.toString(),function (err,obj) {
         if (err) return console.log(err);
+        var tt =  JSON.parse(obj);
         var userObj = {
-            userId : JSON.parse(obj[0]).userId,
-            pageViewCount : ++JSON.parse(obj[0]).pageViewCount,
-            timeZone : JSON.parse(obj[0]).timeZone
+            userId : tt.userId,
+            pageViewCount : ++tt.pageViewCount,
+            timeZone : tt.timeZone
         };
-        redisClient.hmset('Users','user' + req.body.click.toString(),JSON.stringify(userObj));
+        redisClient.hset('Users','user' + req.body.click.toString(),JSON.stringify(userObj));
 
         //Count Mqtt Setup
         if(userObj.pageViewCount%pushSetup.countLimit==0 && pushSetup.countPush){
-            mqttClient.publish(JSON.parse(obj[0]).userId, (userObj.pageViewCount/pushSetup.countLimit)*pushSetup.countLimit+' User Visit!')
+            mqttClient.publish(tt.userId, (userObj.pageViewCount/pushSetup.countLimit)*pushSetup.countLimit+' User Visit!')
         }
     });
-    res.send('hi');
+
 });
 
 
-/* timer Push Setup */
+/* timer Setup */
+var timerPusMsg = [0,];
 setInterval(function () {
     if(pushSetup.timerPush) {
-        var i =1;
-        var pubMsg;
-        console.log(count);
-        async.whilst(
-            function () {return i <= count;},
-            function(cb){
-                redisClient.hmget('Users','user'+i,function (err,obj) {
-                    if (err) return console.log(err);
-                    console.log("i: "+i);
-                    mqttClient.publish('user'+i,JSON.parse(obj[0]).pageViewCount +' User Visit!');
-                });
-                setTimeout(cb,1000);
-            },
-            function(err) {
-                i++;
-                console.log("called");
+        redisClient.hgetall('Users', function (err, obj) {
+            timerPusMsg = [0,];
+            if (err) return console.log(err);
+            for (var i in obj) {
+                timerPusMsg.push(JSON.parse(obj[i]).pageViewCount + ' User Visit!');
             }
-        );
+        });
+
+        for (var i = 1; i <= count; i++) {
+            mqttClient.publish('user' + i, timerPusMsg[i]);
+        }
     }
-}, pushSetup.timerInterval);
+},pushSetup.timerInterval)
 
 /* time Zone Setup */
+var timerZonePusMsg = [0,];
 setInterval(function () {
     if(pushSetup.timezonePush) {
-        var i =1;
         var pushTimeZone = pushSetup.serverTimeZone + Math.abs(getWorldTime(pushSetup.serverTimeZone)-pushSetup.timezonePushTime);
         if(pushTimeZone > 12){
             pushTimeZone = -12 + (pushTimeZone-12)
         }
-        for(i=1;i<=count;i++){
-            redisClient.hmget('Users','user'+i,function (err,obj) {
-                if (err) return console.log(err);
-                if(JSON.parse(obj[0]).timeZone == pushTimeZone)
-                mqttClient.publish('user'+i,JSON.parse(obj[0]).pageViewCount +' User Visit!');
-            });
-        }
-        i=1;
+        redisClient.hgetall('Users', function (err, userList) {
+            timerZonePusMsg = [0,];
+            if (err) return console.log(err);
+
+            for(var i in userList ) {
+                if( userList.hasOwnProperty(i) ) {
+                    var user = userList[i];
+                    var u = JSON.parse(user);
+                    if( u.timeZone === pushTimeZone ) {
+                        // timerZonePusMsg.push(u.pageViewCount + ' User Visit!');
+                        mqttClient.publish(i, u.pageViewCount + ' User Visit!');
+                        console.log(i);
+                    }
+                }
+            }
+            // for (var i in obj) {
+            //     if(JSON.parse(obj[i]).timeZone === pushTimeZone) {
+            //         timerZonePusMsg.push(JSON.parse(obj[i]).pageViewCount + ' User Visit!');
+            //     }
+            //     else{
+            //         timerZonePusMsg.push(false);
+            //     }
+            // }
+            // for (var i = 1; i <= count; i++) {
+            //     if(timerZonePusMsg[i]) {
+            //         mqttClient.publish('user' + i, timerZonePusMsg[i]);
+            //         console.log(timerZonePusMsg[i]);
+            //     }
+            // }
+        });
     }
-}, pushSetup.timezoneInterval);
+}, 10000);
 
 function webClientSetup(){
     var userObj = {
@@ -107,7 +126,7 @@ function webClientSetup(){
         pageViewCount : 0,
         timeZone : Math.floor(Math.random() * 24)-12
     };
-    redisClient.hmset('Users',userObj.userId ,JSON.stringify(userObj));
+    //redisClient.hmset('Users',userObj.userId ,JSON.stringify(userObj));
     return userObj.userId;
 }
 
